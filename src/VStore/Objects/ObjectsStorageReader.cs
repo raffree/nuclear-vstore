@@ -294,6 +294,21 @@ namespace NuClear.VStore.Objects
             return listResponse.S3Objects.Count != 0;
         }
 
+        public async Task<(bool isVersionExists, DateTime lastModified)> IsObjectVersionExists(long id, string versionId)
+        {
+            try
+            {
+                using (var getObjectResponse = await _s3Client.GetObjectAsync(_bucketName, id.AsS3ObjectKey(Tokens.ObjectPostfix), versionId))
+                {
+                    return (true, getObjectResponse.LastModified);
+                }
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                return (false, DateTime.MinValue);
+            }
+        }
+
         public async Task<IImageElementValue> GetImageElementValue(long id, string versionId, int templateCode)
         {
             var objectDescriptor = await GetObjectDescriptor(id, versionId, CancellationToken.None);

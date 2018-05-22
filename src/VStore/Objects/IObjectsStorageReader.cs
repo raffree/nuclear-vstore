@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,6 +19,7 @@ namespace NuClear.VStore.Objects
         Task<IReadOnlyCollection<VersionedObjectDescriptor<string>>> GetObjectLatestVersions(long id);
         Task<ObjectDescriptor> GetObjectDescriptor(long id, string versionId, CancellationToken cancellationToken);
         Task<bool> IsObjectExists(long id);
+        Task<(bool isVersionExists, DateTime lastModified)> IsObjectVersionExists(long id, string versionId);
         Task<IImageElementValue> GetImageElementValue(long id, string versionId, int templateCode);
     }
 }

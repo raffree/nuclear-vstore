@@ -169,6 +169,29 @@ namespace NuClear.VStore.Host.Controllers
         }
 
         /// <summary>
+        /// Check object version existence
+        /// </summary>
+        /// <param name="id">Object identifier</param>
+        /// <param name="versionId">Object version</param>
+        /// <returns>No body</returns>
+        [HttpHead("{id:long}/{versionId}")]
+        [ResponseCache(Duration = 120)]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> CheckVersion(long id, string versionId)
+        {
+            var (isVersionExists, lastModified) = await _objectsStorageReader.IsObjectVersionExists(id, versionId);
+            if (isVersionExists)
+            {
+                Response.Headers[HeaderNames.ETag] = $"\"{versionId}\"";
+                Response.Headers[HeaderNames.LastModified] = lastModified.ToString("R");
+                return Ok();
+            }
+
+            return NotFound();
+        }
+
+        /// <summary>
         /// Get object specific version
         /// </summary>
         /// <param name="id">Object identifier</param>
@@ -177,7 +200,6 @@ namespace NuClear.VStore.Host.Controllers
         [HttpGet("{id:long}/{versionId}")]
         [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetVersion(long id, string versionId)
         {
@@ -206,10 +228,6 @@ namespace NuClear.VStore.Host.Controllers
             catch (ObjectNotFoundException)
             {
                 return NotFound();
-            }
-            catch (ObjectInconsistentException ex)
-            {
-                return BadRequest(ex.Message);
             }
         }
 
