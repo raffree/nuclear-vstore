@@ -358,14 +358,13 @@ namespace VStore.UnitTests.Persistence
                                        .ReturnsAsync(() => templateDescriptor);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
                                        .ReturnsAsync(() => TemplateVersionId);
-            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersions(It.IsAny<long>()))
-                                     .ReturnsAsync(() => new[]
-                                         {
-                                             new VersionedObjectDescriptor<string>(
-                                                 ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
-                                                 ObjectVersionId,
-                                                 DateTime.UtcNow)
-                                         });
+            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
+                                     .ReturnsAsync(
+                                         new VersionedObjectDescriptor<string>(
+                                             ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
+                                             ObjectVersionId,
+                                             DateTime.UtcNow)
+                                     );
 
             var objectDescriptor = new ObjectDescriptor
                 {
@@ -424,14 +423,13 @@ namespace VStore.UnitTests.Persistence
                                        .ReturnsAsync(() => templateDescriptor);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
                                        .ReturnsAsync(() => TemplateVersionId);
-            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersions(It.IsAny<long>()))
-                                     .ReturnsAsync(() => new[]
-                                         {
-                                             new VersionedObjectDescriptor<string>(
-                                                 ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
-                                                 ObjectVersionId,
-                                                 DateTime.UtcNow)
-                                         });
+            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
+                                     .ReturnsAsync(
+                                         new VersionedObjectDescriptor<string>(
+                                             ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
+                                             ObjectVersionId,
+                                             DateTime.UtcNow)
+                                     );
 
             var requests = new List<PutObjectRequest>();
             _s3ClientMock.Setup(m => m.PutObjectAsync(It.IsAny<PutObjectRequest>()))
@@ -497,14 +495,13 @@ namespace VStore.UnitTests.Persistence
                                        .ReturnsAsync(() => templateDescriptor);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
                                        .ReturnsAsync(() => TemplateVersionId);
-            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersions(It.IsAny<long>()))
-                                     .ReturnsAsync(() => new[]
-                                         {
-                                             new VersionedObjectDescriptor<string>(
-                                                 ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
-                                                 ObjectVersionId,
-                                                 DateTime.UtcNow)
-                                         });
+            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
+                                     .ReturnsAsync(
+                                         new VersionedObjectDescriptor<string>(
+                                             ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
+                                             ObjectVersionId,
+                                             DateTime.UtcNow)
+                                     );
 
             var response = new GetObjectMetadataResponse();
             var metadataWrapper = MetadataCollectionWrapper.For(response.Metadata);
@@ -590,14 +587,13 @@ namespace VStore.UnitTests.Persistence
                                        .ReturnsAsync(() => templateDescriptor);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
                                        .ReturnsAsync(() => TemplateVersionId);
-            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersions(It.IsAny<long>()))
-                                     .ReturnsAsync(() => new[]
-                                         {
-                                             new VersionedObjectDescriptor<string>(
-                                                 ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
-                                                 ObjectVersionId,
-                                                 DateTime.UtcNow)
-                                         });
+            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
+                                     .ReturnsAsync(
+                                         new VersionedObjectDescriptor<string>(
+                                             ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
+                                             ObjectVersionId,
+                                             DateTime.UtcNow)
+                                     );
 
             var response = new GetObjectMetadataResponse();
             var metadataWrapper = MetadataCollectionWrapper.For(response.Metadata);
@@ -680,14 +676,13 @@ namespace VStore.UnitTests.Persistence
                                        .ReturnsAsync(() => templateDescriptor);
             _templatesStorageReaderMock.Setup(m => m.GetTemplateLatestVersion(It.IsAny<long>()))
                                        .ReturnsAsync(() => TemplateVersionId);
-            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersions(It.IsAny<long>()))
-                                     .ReturnsAsync(() => new[]
-                                         {
-                                             new VersionedObjectDescriptor<string>(
-                                                 ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
-                                                 ObjectVersionId,
-                                                 DateTime.UtcNow)
-                                         });
+            _objectsStorageReaderMock.Setup(m => m.GetObjectLatestVersion(It.IsAny<long>()))
+                                     .ReturnsAsync(
+                                         new VersionedObjectDescriptor<string>(
+                                             ObjectId.AsS3ObjectKey(Tokens.ObjectPostfix),
+                                             ObjectVersionId,
+                                             DateTime.UtcNow)
+                                     );
 
             var response = new GetObjectMetadataResponse();
             var metadataWrapper = MetadataCollectionWrapper.For(response.Metadata);
