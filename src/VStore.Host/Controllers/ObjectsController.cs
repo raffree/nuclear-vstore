@@ -127,8 +127,7 @@ namespace NuClear.VStore.Host.Controllers
         /// <param name="id">Object identifier</param>
         /// <param name="ifNoneMatch">Object version to check if it has been modified (optional)</param>
         /// <returns>No body with status 200 Ok or 404 Not Found or 304 Not Modified</returns>
-        [HttpGet("{id:long}")]
-        [ResponseCache(Duration = 120)]
+        [HttpHead("{id:long}")]
         [ProducesResponseType(200)]
         [ProducesResponseType(304)]
         [ProducesResponseType(404)]
@@ -158,7 +157,6 @@ namespace NuClear.VStore.Host.Controllers
         /// <param name="ifNoneMatch">Object version to check if it has been modified (optional)</param>
         /// <returns>Object descriptor or 304 Not Modified</returns>
         [HttpGet("{id:long}")]
-        [ResponseCache(Duration = 120)]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(304)]
         [ProducesResponseType(404)]
