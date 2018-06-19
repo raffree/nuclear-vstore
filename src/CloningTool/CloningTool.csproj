@@ -4,7 +4,6 @@
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <RuntimeFrameworkVersion>2.0.7</RuntimeFrameworkVersion>
     <RuntimeIdentifiers>win10-x64;osx.10.12-x64</RuntimeIdentifiers>
-    <TrimUnusedDependencies>true</TrimUnusedDependencies>
     <LangVersion>latest</LangVersion>
     <CodeAnalysisRuleSet>..\..\NuClear.CodeStyle.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
@@ -24,7 +23,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="2.0.2" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="2.0.2" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="2.0.2" />
-    <PackageReference Include="Microsoft.Packaging.Tools.Trimming" Version="1.1.0-preview1-25818-01" />
     <PackageReference Include="Autofac" Version="4.8.1" />
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="4.2.2" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />

@@ -178,16 +178,11 @@ namespace NuClear.VStore.Renderer
             builder.RegisterType<RawFileStorageInfoProvider>().SingleInstance();
             builder.RegisterType<MetricsProvider>().SingleInstance();
 
-            if (!_environment.IsProduction())
-            {
-                SixLabors.ImageSharp.Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithLimitedPooling();
-                builder.RegisterType<MemoryBasedRequestLimiter>().As<IRequestLimiter>().SingleInstance();
-            }
-            else
-            {
-                SixLabors.ImageSharp.Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithUnlimitedPooling();
-                builder.RegisterType<NullRequestLimiter>().As<IRequestLimiter>().SingleInstance();
-            }
+            builder.RegisterType<MemoryBasedRequestLimiter>().As<IRequestLimiter>().SingleInstance();
+            SixLabors.ImageSharp.Configuration.Default.MemoryManager =
+                _environment.IsProduction()
+                    ? ArrayPoolMemoryManagerFactory.CreateWithLimitedLargePooling()
+                    : ArrayPoolMemoryManagerFactory.CreateWithLimitedSmallPooling();
         }
 
         public void Configure(IApplicationBuilder app)

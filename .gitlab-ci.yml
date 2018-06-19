@@ -10,21 +10,21 @@ stages:
 
 before_script:
   - export APPLICATION=`make -s print-APPLICATION`
-  - source ${CI_PROJECT_DIR}/ci-starter-kit/utils.sh
   - export CI_TAG=`[[ -z ${CI_COMMIT_TAG} ]] && echo "branch-${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHA:0:8}" || echo "${CI_COMMIT_TAG}"`
 
 # ================= Test & Build =================
 
 build:app:
-  image: $REGISTRY/microsoft/aspnetcore-build:2.0.8-2.1.200
+  image: $REGISTRY/microsoft/dotnet:2.1.300-sdk-alpine3.7
   stage: build
   when: always
   script:
-    - dotnet restore --runtime debian.9-x64
+    - dotnet restore --runtime ubuntu.14.04-x64
     - dotnet test tests/VStore.UnitTests/VStore.UnitTests.csproj --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutputDirectory="`pwd`/coverage"
-    - dotnet publish src/VStore.Host --configuration Release --runtime debian.9-x64 --output ../../publish/vstore
-    - dotnet publish src/VStore.Worker --configuration Release --runtime debian.9-x64 --output ../../publish/vstore-worker
-    - dotnet publish src/VStore.Renderer --configuration Release --runtime debian.9-x64 --output ../../publish/vstore-renderer
+    - dotnet publish src/VStore.Host --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/vstore
+    - dotnet publish src/VStore.Worker --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/vstore-worker
+    - dotnet restore --runtime alpine.3.7-x64
+    - dotnet publish src/VStore.Renderer --configuration Release --runtime alpine.3.7-x64 --output ../../publish/vstore-renderer
   tags: [ 2gis, docker ]
   artifacts:
     name: "${CI_COMMIT_REF_NAME}_app"
@@ -36,11 +36,11 @@ build:app:
       - publish/vstore-renderer/
 
 build:cloning-tool:
-  image: $REGISTRY/microsoft/dotnet:2.0.7-sdk-2.1.200
+  image: $REGISTRY/microsoft/dotnet:2.1.300-sdk-alpine3.7
   stage: build
   when: manual
   script:
-    - dotnet publish src/CloningTool --configuration Release --runtime debian.9-x64 --output ../../publish/cloning-tool
+    - dotnet publish src/CloningTool --configuration Release --runtime ubuntu.14.04-x64 --output ../../publish/cloning-tool
   tags: [ 2gis, docker ]
   artifacts:
     name: "${CI_COMMIT_REF_NAME}_cloning_tool"
