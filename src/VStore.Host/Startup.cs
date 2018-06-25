@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Net;
 using System.Text;
 
 using Amazon.Runtime;
@@ -50,8 +49,6 @@ using Prometheus.Client.Collectors;
 using Prometheus.Client.Owin;
 
 using RedLockNet;
-using RedLockNet.SERedis;
-using RedLockNet.SERedis.Configuration;
 
 using Swashbuckle.AspNetCore.Swagger;
 
@@ -188,6 +185,7 @@ namespace NuClear.VStore.Host
             builder.Register(x => x.Resolve<IOptions<JwtOptions>>().Value).SingleInstance();
             builder.Register(x => x.Resolve<IOptions<KafkaOptions>>().Value).SingleInstance();
 
+            builder.RegisterType<ReliableRedLockFactory>().SingleInstance();
             builder.Register<IDistributedLockFactory>(
                        x =>
                            {
@@ -197,24 +195,9 @@ namespace NuClear.VStore.Host
                                    return new InMemoryLockFactory();
                                }
 
-                               var loggerFactory = x.Resolve<ILoggerFactory>();
-                               var logger = loggerFactory.CreateLogger<Startup>();
-
-                               var endpoints = lockOptions.GetEndPoints();
-                               var redLockEndPoints = new List<RedLockEndPoint>();
-                               foreach (var endpoint in endpoints)
-                               {
-                                   redLockEndPoints.Add(new RedLockEndPoint(new DnsEndPoint(endpoint.IpAddress, endpoint.Port)) { Password = lockOptions.Password });
-                                   logger.LogInformation(
-                                       "{host}:{port} ({ipAddress}:{port}) will be used as RedLock endpoint.",
-                                       endpoint.Host,
-                                       endpoint.Port,
-                                       endpoint.IpAddress,
-                                       endpoint.Port);
-                               }
-
-                               return RedLockFactory.Create(redLockEndPoints, loggerFactory);
+                               return x.Resolve<ReliableRedLockFactory>();
                            })
+                   .As<IDistributedLockFactory>()
                    .PreserveExistingDefaults()
                    .SingleInstance();
             builder.Register(

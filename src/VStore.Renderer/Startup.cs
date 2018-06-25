@@ -63,7 +63,8 @@ namespace NuClear.VStore.Renderer
             services.AddMvcCore()
                     .AddVersionedApiExplorer()
                     .AddApiExplorer()
-                    .AddCors();
+                    .AddCors()
+                    .AddJsonFormatters();
 
             services.AddApiVersioning(
                 options =>
@@ -179,10 +180,10 @@ namespace NuClear.VStore.Renderer
             builder.RegisterType<MetricsProvider>().SingleInstance();
 
             builder.RegisterType<MemoryBasedRequestLimiter>().As<IRequestLimiter>().SingleInstance();
-            SixLabors.ImageSharp.Configuration.Default.MemoryManager =
+            SixLabors.ImageSharp.Configuration.Default.MemoryAllocator =
                 _environment.IsProduction()
-                    ? ArrayPoolMemoryManagerFactory.CreateWithLimitedLargePooling()
-                    : ArrayPoolMemoryManagerFactory.CreateWithLimitedSmallPooling();
+                    ? ArrayPoolMemoryAllocatorFactory.CreateWithLimitedLargePooling()
+                    : ArrayPoolMemoryAllocatorFactory.CreateWithLimitedSmallPooling();
         }
 
         public void Configure(IApplicationBuilder app)

@@ -19,7 +19,7 @@ namespace VStore.UnitTests.ImageRendering
         public MemoryConsumptionTests(ITestOutputHelper output)
         {
             _output = output;
-            Configuration.Default.MemoryManager = ArrayPoolMemoryManagerFactory.CreateWithLimitedSmallPooling();
+            Configuration.Default.MemoryAllocator = ArrayPoolMemoryAllocatorFactory.CreateWithLimitedSmallPooling();
         }
 
         [Fact(Skip = "Run manually")]
