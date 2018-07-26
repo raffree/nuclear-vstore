@@ -273,11 +273,6 @@ namespace NuClear.VStore.Host.Controllers
             {
                 return Locked("Simultaneous creation of object with the same id");
             }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(default, ex, "Error occured while creating object");
-                return BadRequest(ex.Message);
-            }
             catch (ArgumentException ex)
             {
                 return BadRequest(ex.Message);
@@ -357,11 +352,6 @@ namespace NuClear.VStore.Host.Controllers
             catch (ConcurrencyException)
             {
                 return PreconditionFailed();
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(default, ex, "Error occured while modifying object");
-                return BadRequest(ex.Message);
             }
             catch (ArgumentException ex)
             {

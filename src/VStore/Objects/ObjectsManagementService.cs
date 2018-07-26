@@ -82,15 +82,6 @@ namespace NuClear.VStore.Objects
                 }
 
                 var templateDescriptor = await _templatesStorageReader.GetTemplateDescriptor(objectDescriptor.TemplateId, objectDescriptor.TemplateVersionId);
-
-                var latestTemplateVersionId = await _templatesStorageReader.GetTemplateLatestVersion(objectDescriptor.TemplateId);
-                if (!templateDescriptor.VersionId.Equals(latestTemplateVersionId, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException(
-                        $"Template '{objectDescriptor.TemplateId}' has an outdated version. " +
-                        $"Latest versionId for template '{objectDescriptor.TemplateId}' is '{latestTemplateVersionId}'.");
-                }
-
                 if (templateDescriptor.Elements.Count != objectDescriptor.Elements.Count)
                 {
                     throw new ObjectInconsistentException(
