@@ -119,6 +119,25 @@ namespace NuClear.VStore.Objects
         public async Task<IReadOnlyCollection<ObjectVersionMetadataRecord>> GetObjectVersionsMetadata(long id, string initialVersionId) =>
             await GetObjectVersions(id, initialVersionId, false);
 
+        /// <inheritdoc />
+        public async Task<VersionedObjectDescriptor<string>> GetObjectLatestVersion(long id)
+        {
+            var versionsResponse = await _s3Client.ListVersionsAsync(_bucketName, id.AsS3ObjectKey(Tokens.ObjectPostfix));
+            return versionsResponse.Versions
+                                   .Where(x => !x.IsDeleteMarker && x.IsLatest)
+                                   .Select(x => new VersionedObjectDescriptor<string>(x.Key, x.VersionId, x.LastModified))
+                                   .SingleOrDefault();
+        }
+
+        public async Task<IReadOnlyCollection<VersionedObjectDescriptor<string>>> GetObjectElementsLatestVersions(long id)
+        {
+            var versionsResponse = await _s3Client.ListVersionsAsync(_bucketName, id.ToString() + "/");
+            return versionsResponse.Versions
+                                   .Where(x => !x.IsDeleteMarker && x.IsLatest && !x.Key.EndsWith("/") && !x.Key.EndsWith(Tokens.ObjectPostfix))
+                                   .Select(x => new VersionedObjectDescriptor<string>(x.Key, x.VersionId, x.LastModified))
+                                   .ToList();
+        }
+
         public async Task<ObjectDescriptor> GetObjectDescriptor(long id, string versionId, CancellationToken cancellationToken) =>
             await GetObjectDescriptor(id, versionId, cancellationToken, true);
 
@@ -257,25 +276,6 @@ namespace NuClear.VStore.Objects
             }
 
             return records;
-        }
-
-        /// <inheritdoc />
-        public async Task<VersionedObjectDescriptor<string>> GetObjectLatestVersion(long id)
-        {
-            var versionsResponse = await _s3Client.ListVersionsAsync(_bucketName, id.AsS3ObjectKey(Tokens.ObjectPostfix));
-            return versionsResponse.Versions
-                                   .Where(x => !x.IsDeleteMarker && x.IsLatest)
-                                   .Select(x => new VersionedObjectDescriptor<string>(x.Key, x.VersionId, x.LastModified))
-                                   .SingleOrDefault();
-        }
-
-        public async Task<IReadOnlyCollection<VersionedObjectDescriptor<string>>> GetObjectElementsLatestVersions(long id)
-        {
-            var versionsResponse = await _s3Client.ListVersionsAsync(_bucketName, id.ToString() + "/");
-            return versionsResponse.Versions
-                                   .Where(x => !x.IsDeleteMarker && x.IsLatest && !x.Key.EndsWith("/") && !x.Key.EndsWith(Tokens.ObjectPostfix))
-                                   .Select(x => new VersionedObjectDescriptor<string>(x.Key, x.VersionId, x.LastModified))
-                                   .ToList();
         }
 
         private async Task<ObjectDescriptor> GetObjectDescriptor(long id, string versionId, CancellationToken cancellationToken, bool fetchElements)

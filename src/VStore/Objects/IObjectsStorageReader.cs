@@ -16,6 +16,7 @@ namespace NuClear.VStore.Objects
         Task<IReadOnlyCollection<ObjectMetadataRecord>> GetObjectMetadatas(IReadOnlyCollection<long> ids);
         Task<IVersionedTemplateDescriptor> GetTemplateDescriptor(long id, string versionId);
         Task<IReadOnlyCollection<ObjectVersionRecord>> GetObjectVersions(long id, string initialVersionId);
+        Task<IReadOnlyCollection<ObjectVersionMetadataRecord>> GetObjectVersionsMetadata(long id, string initialVersionId);
 
         /// <summary>
         /// Get object latest version
@@ -24,7 +25,6 @@ namespace NuClear.VStore.Objects
         /// <returns>Latest version descriptor or <code>null</code> if object not found</returns>
         Task<VersionedObjectDescriptor<string>> GetObjectLatestVersion(long id);
         Task<IReadOnlyCollection<VersionedObjectDescriptor<string>>> GetObjectElementsLatestVersions(long id);
-        Task<IReadOnlyCollection<ObjectVersionMetadataRecord>> GetObjectVersionsMetadata(long id, string initialVersionId);
         Task<ObjectDescriptor> GetObjectDescriptor(long id, string versionId, CancellationToken cancellationToken);
         Task<bool> IsObjectExists(long id);
 
