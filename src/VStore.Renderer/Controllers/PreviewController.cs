@@ -85,7 +85,7 @@ namespace NuClear.VStore.Renderer.Controllers
             {
                 return TooManyRequests(_retryAfter);
             }
-            catch (ArgumentException ex)
+            catch (ObjectElementInvalidTypeException ex)
             {
                 return BadRequest(ex.Message);
             }
@@ -142,7 +142,7 @@ namespace NuClear.VStore.Renderer.Controllers
             {
                 return TooManyRequests(_retryAfter);
             }
-            catch (ArgumentException ex)
+            catch (ObjectElementInvalidTypeException ex)
             {
                 return BadRequest(ex.Message);
             }
@@ -192,7 +192,7 @@ namespace NuClear.VStore.Renderer.Controllers
             {
                 return TooManyRequests(_retryAfter);
             }
-            catch (ArgumentException ex)
+            catch (ObjectElementInvalidTypeException ex)
             {
                 return BadRequest(ex.Message);
             }

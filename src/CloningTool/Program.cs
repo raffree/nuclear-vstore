@@ -144,6 +144,15 @@ namespace CloningTool
             builder.RegisterType<CloneTemplatesWithLinks>()
                    .Keyed<ICloneStrategy>(CloneMode.CloneTemplatesWithLinks);
 
+            builder.RegisterType<CloneRemarks>()
+                   .Keyed<ICloneStrategy>(CloneMode.CloneRemarks);
+
+            builder.RegisterType<CloneRemarkCategories>()
+                   .Keyed<ICloneStrategy>(CloneMode.CloneRemarkCategories);
+
+            builder.RegisterType<CloneRemarksWithCategories>()
+                   .Keyed<ICloneStrategy>(CloneMode.CloneRemarksWithCategories);
+
             builder.RegisterType<TruncatedCloneAll>()
                    .Keyed<ICloneStrategy>(CloneMode.TruncatedCloneAll);
 

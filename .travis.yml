@@ -11,4 +11,4 @@ script:
 after_success:
  - curl -s https://codecov.io/bash > codecov
  - chmod +x codecov
- - ./codecov -f "./coverage.xml"
+ - ./codecov -f "./coverage.opencover.xml"

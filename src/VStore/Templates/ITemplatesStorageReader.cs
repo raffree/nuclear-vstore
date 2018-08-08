@@ -13,6 +13,6 @@ namespace NuClear.VStore.Templates
         Task<TemplateDescriptor> GetTemplateDescriptor(long id, string versionId);
         Task<string> GetTemplateLatestVersion(long id);
         Task<bool> IsTemplateExists(long id);
-        Task<IReadOnlyCollection<TemplateVersionRecord>> GetTemplateVersions(long id, string initialVersionId);
+        Task<IReadOnlyCollection<TemplateVersionRecord>> GetTemplateVersions(long id);
     }
 }

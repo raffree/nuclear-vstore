@@ -6,6 +6,7 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{C8C4BA38-6854-4E26-B8EC-4319DED458AC}"
 	ProjectSection(SolutionItems) = preProject
 		.gitlab-ci.yml = .gitlab-ci.yml
+		.travis.yml = .travis.yml
 		build\build.sh = build\build.sh
 		config-standalone.yaml = config-standalone.yaml
 		build\docker-compose-build.yml = build\docker-compose-build.yml
@@ -17,7 +18,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{1E16C21E
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CA83EA03-82A0-4E15-87EF-31CD857393E3}"
 	ProjectSection(SolutionItems) = preProject
-		.travis.yml = .travis.yml
 		global.json = global.json
 		NuClear.CodeStyle.ruleset = NuClear.CodeStyle.ruleset
 		NuGet.Config = NuGet.Config
@@ -92,9 +92,6 @@ Global
 		{337F7277-72F6-4E44-97E9-C368163F033D} = {296CC59B-21CF-456D-85E2-7C99DFF9D2C7}
 		{29DC0B5F-8FE9-458F-A234-D87B39E87664} = {296CC59B-21CF-456D-85E2-7C99DFF9D2C7}
 		{09046190-BF95-49BE-86EF-C2666D47B848} = {296CC59B-21CF-456D-85E2-7C99DFF9D2C7}
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {0499A7AB-E556-4316-A381-9795EA5434A1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0499A7AB-E556-4316-A381-9795EA5434A1}

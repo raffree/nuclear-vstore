@@ -13,9 +13,13 @@ namespace CloningTool.RestClient
         Task<string> UpdateTemplateAsync(ApiTemplateDescriptor template, string versionId);
         Task<ApiObjectDescriptor> CreateAdvertisementPrototypeAsync(long templateId, string langCode, long firmId);
         Task<ApiObjectElementRawValue> UploadFileAsync(long advertisementId, Uri uploadUri, string fileName, byte[] fileData, MediaTypeHeaderValue contentType, params NameValueHeaderValue[] headers);
-        Task UpdateAdvertisementModerationStatusAsync(string objectId, string versionId, ModerationResult moderationResult);
+        Task UpdateAdvertisementModerationStatusAsync(long advertisementId, string versionId, ModerationResult moderationResult);
         Task SelectAdvertisementToWhitelistAsync(string advertisementId);
         Task<string> CreateAdvertisementAsync(long id, long firmId, ApiObjectDescriptor advertisement);
         Task<ApiObjectDescriptor> UpdateAdvertisementAsync(ApiObjectDescriptor advertisement);
+        Task CreateRemarkCategoryAsync(string remarkCategoryId, RemarkCategory remarkCategory);
+        Task UpdateRemarkCategoryAsync(string remarkCategoryId, RemarkCategory remarkCategory);
+        Task CreateRemarkAsync(string remarkId, Remark remark);
+        Task UpdateRemarkAsync(string remarkId, Remark remark);
     }
 }

@@ -70,23 +70,24 @@ namespace CloningTool.CloneStrategies
 
             var clonedCount = 0L;
             var failedIds = new ConcurrentBag<long>();
-            await CloneHelpers.ParallelRunAsync(positionsLinksToClone,
-                                                _options.MaxDegreeOfParallelism,
-                                                async position =>
-                                                {
-                                                    try
-                                                    {
-                                                        EnsurePositionsAreEqual(destPositions[position.Id], position);
-                                                        await ClonePositionLinkAsync(position, destPositions[position.Id]);
-                                                        Interlocked.Increment(ref clonedCount);
-                                                        _logger.LogInformation("Position link cloning succeeded: {position}", position);
-                                                    }
-                                                    catch (Exception ex)
-                                                    {
-                                                        failedIds.Add(position.Id);
-                                                        _logger.LogError(default, ex, "Position link cloning error: {position}", position);
-                                                    }
-                                                });
+            await CloneHelpers.ParallelRunAsync(
+                positionsLinksToClone,
+                _options.MaxDegreeOfParallelism,
+                async position =>
+                    {
+                        try
+                        {
+                            EnsurePositionsAreEqual(destPositions[position.Id], position);
+                            await ClonePositionLinkAsync(position, destPositions[position.Id]);
+                            Interlocked.Increment(ref clonedCount);
+                            _logger.LogInformation("Position link cloning succeeded: {position}", position);
+                        }
+                        catch (Exception ex)
+                        {
+                            failedIds.Add(position.Id);
+                            _logger.LogError(default, ex, "Position link cloning error: {position}", position);
+                        }
+                    });
 
             _logger.LogInformation("Cloned position links: {cloned} of {total}", clonedCount, positionsLinksToClone.Count);
             if (failedIds.Count > 0)
@@ -118,15 +119,18 @@ namespace CloningTool.CloneStrategies
             {
                 if (destPosition?.Template?.Id == templateId)
                 {
-                    _logger.LogInformation("Link between position {id} and template {template} already exists, skip linking",
-                                           sourcePosition.Id,
-                                           templateId.Value);
+                    _logger.LogInformation(
+                        "Link between position {id} and template {template} already exists, skip linking",
+                        sourcePosition.Id,
+                        templateId.Value);
                     return;
                 }
 
-                _logger.LogInformation("Creating link between position {id} and template {template}",
-                                       sourcePosition.Id,
-                                       templateId.Value);
+                _logger.LogInformation(
+                    "Creating link between position {id} and template {template}",
+                    sourcePosition.Id,
+                    templateId.Value);
+
                 await DestRestClient.CreatePositionTemplateLinkAsync(sourcePosition.Id.ToString(), templateId.Value.ToString());
             }
         }

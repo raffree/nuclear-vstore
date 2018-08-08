@@ -28,7 +28,8 @@ namespace CloningTool.CloneStrategies
         private IDictionary<long, ApiListTemplate> _destTemplates;
         private IDictionary<long, ApiListTemplate> _sourceTemplates;
 
-        public CloneTemplates(CloningToolOptions options,
+        public CloneTemplates(
+            CloningToolOptions options,
             IReadOnlyRestClientFacade sourceRestClient,
             IRestClientFacade destRestClient,
             ILogger<CloneTemplates> logger)
@@ -113,30 +114,78 @@ namespace CloningTool.CloneStrategies
         private async Task CloneTemplateAsync(ApiListTemplate template)
         {
             var templateIdStr = template.Id.ToString();
-            var sourceTemplate = await SourceRestClient.GetTemplateAsync(templateIdStr);
-            var destTemplate = await DestRestClient.GetTemplateAsync(templateIdStr);
-            if (destTemplate == null)
+            var sourceTemplateVersions = (await SourceRestClient.GetTemplateVersionsAsync(templateIdStr))
+                                         .OrderBy(v => v.VersionIndex)
+                                         .ToList();
+
+            _logger.LogInformation("Source template {id} has {count} versions", template.Id, sourceTemplateVersions.Count);
+
+            var destTemplateVersions = (await DestRestClient.GetTemplateVersionsAsync(templateIdStr))
+                                       .OrderBy(v => v.VersionIndex)
+                                       .ToList();
+
+            if (destTemplateVersions.Count < 1)
             {
-                await DestRestClient.CreateTemplateAsync(templateIdStr, sourceTemplate);
-            }
-            else
-            {
-                _logger.LogInformation("Template {id} already exists in destination", template.Id);
-                if (!CompareTemplateDescriptors(destTemplate, sourceTemplate))
+                _logger.LogInformation("Template {id} does not exist in destination", template.Id);
+                var destTemplateVersion = string.Empty;
+                foreach (var sourceTemplateVersion in sourceTemplateVersions)
                 {
-                    if (_options.OverwriteUnequalTemplates)
+                    var sourceTemplate = await SourceRestClient.GetTemplateAsync(templateIdStr, sourceTemplateVersion.VersionId);
+                    if (sourceTemplateVersion.VersionIndex == 0)
                     {
-                        _logger.LogWarning("Updating template {id} with version {versionId} in destination", template.Id, destTemplate.VersionId);
-                        await DestRestClient.UpdateTemplateAsync(sourceTemplate, destTemplate.VersionId);
+                        destTemplateVersion = await DestRestClient.CreateTemplateAsync(templateIdStr, sourceTemplate);
                     }
                     else
                     {
-                        throw new InvalidOperationException("Templates with id = " + templateIdStr + " are not equal");
+                        destTemplateVersion = await DestRestClient.UpdateTemplateAsync(sourceTemplate, destTemplateVersion);
+                    }
+
+                    _logger.LogInformation(
+                        "Source template {id} {index}-th version {sourceVersion} has been cloned into destination with version {destVersion}",
+                        template.Id,
+                        sourceTemplateVersion.VersionIndex,
+                        sourceTemplateVersion.VersionId,
+                        destTemplateVersion);
+                }
+            }
+            else
+            {
+                _logger.LogInformation("Template {id} already exists in destination with {count} versions", template.Id, destTemplateVersions.Count);
+                if (destTemplateVersions.Count > sourceTemplateVersions.Count)
+                {
+                    throw new InvalidOperationException("Template with id = " + templateIdStr + " has more versions in destination than in source");
+                }
+
+                if (destTemplateVersions.Count == sourceTemplateVersions.Count)
+                {
+                    var destTemplate = await DestRestClient.GetTemplateAsync(templateIdStr);
+                    var sourceTemplate = await SourceRestClient.GetTemplateAsync(templateIdStr);
+                    if (CompareTemplateDescriptors(destTemplate, sourceTemplate))
+                    {
+                        _logger.LogInformation("Templates with id {id} have equal last version and version count in source and destination", template.Id);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Templates with id = " + templateIdStr + " have unequal last version");
                     }
                 }
                 else
                 {
-                    _logger.LogInformation("Templates with id {id} are equal in source and destination", template.Id);
+                    _logger.LogInformation("Template {id} has {count} versions to be cloned in destination", template.Id, sourceTemplateVersions.Count - destTemplateVersions.Count);
+                    var destTemplateVersion = destTemplateVersions.Last().VersionId;
+                    for (var i = destTemplateVersions.Count; i < sourceTemplateVersions.Count; ++i)
+                    {
+                        var sourceTemplateVersion = sourceTemplateVersions[i];
+                        var sourceTemplate = await SourceRestClient.GetTemplateAsync(templateIdStr, sourceTemplateVersion.VersionId);
+                        destTemplateVersion = await DestRestClient.UpdateTemplateAsync(sourceTemplate, destTemplateVersion);
+
+                        _logger.LogInformation(
+                            "Source template {id} {index}-th version {sourceVersion} has been cloned into destination with version {destVersion}",
+                            template.Id,
+                            sourceTemplateVersion.VersionIndex,
+                            sourceTemplateVersion.VersionId,
+                            destTemplateVersion);
+                    }
                 }
             }
         }
@@ -195,11 +244,12 @@ namespace CloningTool.CloneStrategies
 
                 if (!Equals(firstElement.Placement, secondElement.Placement))
                 {
-                    _logger.LogInformation("Different elements placements for template {id} (template code {code}), existed: {existed} and new: {new}",
-                                           existedTemplate.Id,
-                                           firstElement.TemplateCode,
-                                           firstElement.Placement,
-                                           secondElement.Placement);
+                    _logger.LogInformation(
+                        "Different elements placements for template {id} (template code {code}), existed: {existed} and new: {new}",
+                        existedTemplate.Id,
+                        firstElement.TemplateCode,
+                        firstElement.Placement,
+                        secondElement.Placement);
                     return false;
                 }
 

@@ -113,7 +113,61 @@ namespace NuClear.VStore.Objects
             return await _templatesStorageReader.GetTemplateDescriptor(persistenceDescriptor.TemplateId, persistenceDescriptor.TemplateVersionId);
         }
 
-        public async Task<IReadOnlyCollection<ObjectVersionRecord>> GetObjectVersions(long id, string initialVersionId)
+        public async Task<IReadOnlyCollection<ObjectVersionRecord>> GetObjectVersions(long id, string initialVersionId) =>
+            await GetObjectVersions(id, initialVersionId, true);
+
+        public async Task<IReadOnlyCollection<ObjectVersionMetadataRecord>> GetObjectVersionsMetadata(long id, string initialVersionId) =>
+            await GetObjectVersions(id, initialVersionId, false);
+
+        public async Task<ObjectDescriptor> GetObjectDescriptor(long id, string versionId, CancellationToken cancellationToken) =>
+            await GetObjectDescriptor(id, versionId, cancellationToken, true);
+
+        public async Task<bool> IsObjectExists(long id)
+        {
+            var listResponse = await _s3Client.ListObjectsV2Async(
+                                   new ListObjectsV2Request
+                                   {
+                                       BucketName = _bucketName,
+                                       MaxKeys = 1,
+                                       Prefix = $"{id}/{Tokens.ObjectPostfix}"
+                                   });
+            return listResponse.S3Objects.Count != 0;
+        }
+
+        /// <inheritdoc />
+        public async Task<DateTime> GetObjectVersionLastModified(long id, string versionId)
+        {
+            try
+            {
+                var response = await _s3Client.GetObjectMetadataAsync(_bucketName, id.AsS3ObjectKey(Tokens.ObjectPostfix), versionId);
+                return response.LastModified;
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                throw new ObjectNotFoundException($"Object '{id}' with versionId '{versionId}' not found.");
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IImageElementValue> GetImageElementValue(long id, string versionId, int templateCode)
+        {
+            var objectDescriptor = await GetObjectDescriptor(id, versionId, CancellationToken.None);
+            var element = objectDescriptor.Elements.SingleOrDefault(x => x.TemplateCode == templateCode);
+            if (element == null)
+            {
+                throw new ObjectNotFoundException($"Element with template code '{templateCode}' of object/versionId '{id}/{versionId}' not found.");
+            }
+
+            if (!(element.Value is IImageElementValue elementValue))
+            {
+                throw new ObjectElementInvalidTypeException(
+                    $"Element with template code '{templateCode}' of object/versionId '{id}/{versionId}' is not an image.");
+            }
+
+            return elementValue;
+        }
+
+        private async Task<IReadOnlyCollection<ObjectVersionRecord>> GetObjectVersions(long id, string initialVersionId, bool fetchElements)
         {
             var objectDescriptors = new List<ObjectDescriptor>();
 
@@ -139,8 +193,9 @@ namespace NuClear.VStore.Objects
                         (list, next) =>
                             {
                                 initialVersionIdReached = initialVersionIdReached ||
-                                                          !string.IsNullOrEmpty(initialVersionId) &&
-                                                          initialVersionId.Equals(next.VersionId, StringComparison.OrdinalIgnoreCase);
+                                                          (!string.IsNullOrEmpty(initialVersionId) &&
+                                                           initialVersionId.Equals(next.VersionId, StringComparison.OrdinalIgnoreCase));
+
                                 if (!initialVersionIdReached)
                                 {
                                     list.Add((next.VersionId, next.LastModified));
@@ -159,7 +214,7 @@ namespace NuClear.VStore.Objects
                                                            var index = partition.Current.Key;
                                                            var versionInfo = partition.Current.Value;
 
-                                                           descriptors[index] = await GetObjectDescriptor(id, versionInfo.VersionId, CancellationToken.None);
+                                                           descriptors[index] = await GetObjectDescriptor(id, versionInfo.VersionId, CancellationToken.None, fetchElements);
                                                        }
                                                    });
                 await Task.WhenAll(tasks);
@@ -223,7 +278,7 @@ namespace NuClear.VStore.Objects
                                    .ToList();
         }
 
-        public async Task<ObjectDescriptor> GetObjectDescriptor(long id, string versionId, CancellationToken cancellationToken)
+        private async Task<ObjectDescriptor> GetObjectDescriptor(long id, string versionId, CancellationToken cancellationToken, bool fetchElements)
         {
             string objectVersionId;
             if (string.IsNullOrEmpty(versionId))
@@ -244,28 +299,33 @@ namespace NuClear.VStore.Objects
             var (persistenceDescriptor, objectAuthorInfo, objectLastModified, modifiedElements) =
                 await GetObjectFromS3<ObjectPersistenceDescriptor>(id.AsS3ObjectKey(Tokens.ObjectPostfix), objectVersionId, cancellationToken);
 
-            var tasks = persistenceDescriptor.Elements
-                                             .Select(async x =>
-                                                         {
-                                                             var (elementPersistenceDescriptor, _, elementLastModified, _) =
-                                                                 await GetObjectFromS3<ObjectElementPersistenceDescriptor>(x.Id, x.VersionId, cancellationToken);
+            var elements = Array.Empty<ObjectElementDescriptor>();
+            if (fetchElements)
+            {
+                var tasks =
+                    persistenceDescriptor.Elements
+                                         .Select(async x =>
+                                                     {
+                                                         var (elementPersistenceDescriptor, _, elementLastModified, _) =
+                                                             await GetObjectFromS3<ObjectElementPersistenceDescriptor>(x.Id, x.VersionId, cancellationToken);
 
-                                                             SetCdnUris(id, objectVersionId, elementPersistenceDescriptor);
-                                                             return new ObjectElementDescriptor
-                                                                 {
-                                                                     Id = x.Id.AsSubObjectId(),
-                                                                     VersionId = x.VersionId,
-                                                                     LastModified = elementLastModified,
-                                                                     Type = elementPersistenceDescriptor.Type,
-                                                                     TemplateCode = elementPersistenceDescriptor.TemplateCode,
-                                                                     Properties = elementPersistenceDescriptor.Properties,
-                                                                     Constraints = elementPersistenceDescriptor.Constraints,
-                                                                     Value = elementPersistenceDescriptor.Value
-                                                                 };
-                                                         })
-                                             .ToList();
+                                                         SetCdnUris(id, objectVersionId, elementPersistenceDescriptor);
+                                                         return new ObjectElementDescriptor
+                                                             {
+                                                                 Id = x.Id.AsSubObjectId(),
+                                                                 VersionId = x.VersionId,
+                                                                 LastModified = elementLastModified,
+                                                                 Type = elementPersistenceDescriptor.Type,
+                                                                 TemplateCode = elementPersistenceDescriptor.TemplateCode,
+                                                                 Properties = elementPersistenceDescriptor.Properties,
+                                                                 Constraints = elementPersistenceDescriptor.Constraints,
+                                                                 Value = elementPersistenceDescriptor.Value
+                                                             };
+                                                     })
+                                         .ToList();
 
-            var elements = await Task.WhenAll(tasks);
+                elements = await Task.WhenAll(tasks);
+            }
 
             var descriptor = new ObjectDescriptor
                                  {
@@ -286,51 +346,6 @@ namespace NuClear.VStore.Objects
                                          }
                                  };
             return descriptor;
-        }
-
-        public async Task<bool> IsObjectExists(long id)
-        {
-            var listResponse = await _s3Client.ListObjectsV2Async(
-                                   new ListObjectsV2Request
-                                   {
-                                       BucketName = _bucketName,
-                                       MaxKeys = 1,
-                                       Prefix = $"{id}/{Tokens.ObjectPostfix}"
-                                   });
-            return listResponse.S3Objects.Count != 0;
-        }
-
-        /// <inheritdoc />
-        public async Task<DateTime> GetObjectVersionLastModified(long id, string versionId)
-        {
-            try
-            {
-                var response = await _s3Client.GetObjectMetadataAsync(_bucketName, id.AsS3ObjectKey(Tokens.ObjectPostfix), versionId);
-                return response.LastModified;
-            }
-            catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-            {
-                throw new ObjectNotFoundException($"Object '{id}' with versionId '{versionId}' not found.");
-            }
-        }
-
-        public async Task<IImageElementValue> GetImageElementValue(long id, string versionId, int templateCode)
-        {
-            var objectDescriptor = await GetObjectDescriptor(id, versionId, CancellationToken.None);
-            var element = objectDescriptor.Elements.SingleOrDefault(x => x.TemplateCode == templateCode);
-            if (element == null)
-            {
-                throw new ObjectNotFoundException($"Element with template code '{templateCode}' of object/versionId '{id}/{versionId}' not found.");
-            }
-
-            if (!(element.Value is IImageElementValue elementValue))
-            {
-                throw new ArgumentException(
-                    $"Element with template code '{templateCode}' of object/versionId '{id}/{versionId}' is not an image.",
-                    nameof(templateCode));
-            }
-
-            return elementValue;
         }
 
         private async Task<(T, AuthorInfo, DateTime, IReadOnlyCollection<int>)> GetObjectFromS3<T>(string key, string versionId, CancellationToken cancellationToken)

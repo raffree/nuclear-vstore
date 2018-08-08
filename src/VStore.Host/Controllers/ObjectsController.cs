@@ -96,19 +96,19 @@ namespace NuClear.VStore.Host.Controllers
         }
 
         /// <summary>
-        /// Get object versions
+        /// Get object versions metadata
         /// </summary>
         /// <param name="id">Object identifier</param>
         /// <returns>List of object versions</returns>
         [HttpGet("{id:long}/versions")]
-        [ProducesResponseType(typeof(IReadOnlyCollection<ObjectVersionRecord>), 200)]
+        [ProducesResponseType(typeof(IReadOnlyCollection<ObjectVersionMetadataRecord>), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(503)]
         public async Task<IActionResult> GetVersions(long id)
         {
             try
             {
-                var versions = await _objectsStorageReader.GetObjectVersions(id, null);
+                var versions = await _objectsStorageReader.GetObjectVersionsMetadata(id, initialVersionId: null);
                 return Json(versions);
             }
             catch (ObjectNotFoundException)

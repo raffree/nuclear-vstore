@@ -93,7 +93,7 @@ namespace NuClear.VStore.Locks
             CancellationToken? cancellationToken = null)
         {
             WaitPolicy.Execute(() => _innerFactory);
-            var redLock =  RetryPolicy.Execute(() => _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken));
+            var redLock = RetryPolicy.Execute(() => _innerFactory.CreateLock(resource, expiryTime, waitTime, retryTime, cancellationToken));
 
             return new SafeRedLock(_logger, redLock);
         }
@@ -106,7 +106,7 @@ namespace NuClear.VStore.Locks
             CancellationToken? cancellationToken = null)
         {
             WaitPolicy.Execute(() => _innerFactory);
-            var redLock = await RetryPolicyAsync.ExecuteAsync(() =>  _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken));
+            var redLock = await RetryPolicyAsync.ExecuteAsync(() => _innerFactory.CreateLockAsync(resource, expiryTime, waitTime, retryTime, cancellationToken));
 
             return new SafeRedLock(_logger, redLock);
         }
@@ -197,6 +197,7 @@ namespace NuClear.VStore.Locks
                                 ConnectTimeout = _lockOptions.ConnectionTimeout ?? DefaultConnectionTimeout,
                                 SyncTimeout = _lockOptions.SyncTimeout ?? DefaultSyncTimeout,
                                 KeepAlive = keepAlive,
+
                                 // Time (seconds) to check configuration. This serves as a keep-alive for interactive sockets, if it is supported.
                                 ConfigCheckSeconds = keepAlive
                             };
@@ -282,12 +283,12 @@ namespace NuClear.VStore.Locks
                                 {
                                     logger.LogTrace("Checking RedLock endpoint {endpoint} for availablity.", GetFriendlyName(endpoint));
                                     var server = multiplexer.GetServer(endpoint);
-                                    server.Ping();
-                                    logger.LogTrace("RedLock endpoint {endpoint} is available.", GetFriendlyName(endpoint));
+                                    var latency = server.Ping();
+                                    logger.LogTrace("RedLock endpoint {endpoint} is available. Latency: {latency}", GetFriendlyName(endpoint), latency);
                                 }
                                 catch (Exception ex)
                                 {
-                                    logger.LogDebug(
+                                    logger.LogWarning(
                                         "RedLock endpoint {endpoint} is unavailable. All connections will be recreated. Exception: {exception}",
                                         GetFriendlyName(endpoint),
                                         ex.ToString());

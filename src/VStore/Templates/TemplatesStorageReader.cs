@@ -17,7 +17,6 @@ using Newtonsoft.Json;
 using NuClear.VStore.DataContract;
 using NuClear.VStore.Descriptors.Templates;
 using NuClear.VStore.Json;
-using NuClear.VStore.Locks;
 using NuClear.VStore.Options;
 using NuClear.VStore.S3;
 
@@ -27,15 +26,13 @@ namespace NuClear.VStore.Templates
     {
         private readonly IS3Client _s3Client;
         private readonly IMemoryCache _memoryCache;
-        private readonly DistributedLockManager _distributedLockManager;
         private readonly string _bucketName;
         private readonly int _degreeOfParallelism;
 
-        public TemplatesStorageReader(CephOptions cephOptions, IS3Client s3Client, IMemoryCache memoryCache, DistributedLockManager distributedLockManager)
+        public TemplatesStorageReader(CephOptions cephOptions, IS3Client s3Client, IMemoryCache memoryCache)
         {
             _s3Client = s3Client;
             _memoryCache = memoryCache;
-            _distributedLockManager = distributedLockManager;
             _bucketName = cephOptions.TemplatesBucketName;
             _degreeOfParallelism = cephOptions.DegreeOfParallelism;
         }
@@ -89,21 +86,22 @@ namespace NuClear.VStore.Templates
                                     result[x.Current.Key] = record;
                                 }
                             });
+
             await Task.WhenAll(tasks);
             return result.Where(x => x != null).ToList();
         }
 
         public async Task<TemplateDescriptor> GetTemplateDescriptor(long id, string versionId)
         {
-            var objectVersionId = string.IsNullOrEmpty(versionId) ? await GetTemplateLatestVersion(id) : versionId;
+            var templateVersionId = string.IsNullOrEmpty(versionId) ? await GetTemplateLatestVersion(id) : versionId;
 
             var templateDescriptor = await _memoryCache.GetOrCreateAsync(
-                id.AsCacheEntryKey(objectVersionId),
+                id.AsCacheEntryKey(templateVersionId),
                 async entry =>
                     {
                         try
                         {
-                            using (var response = await _s3Client.GetObjectAsync(_bucketName, id.ToString(), objectVersionId))
+                            using (var response = await _s3Client.GetObjectAsync(_bucketName, id.ToString(), templateVersionId))
                             {
                                 var metadataWrapper = MetadataCollectionWrapper.For(response.Metadata);
                                 var author = metadataWrapper.Read<string>(MetadataElement.Author);
@@ -119,7 +117,7 @@ namespace NuClear.VStore.Templates
                                 var descriptor = new TemplateDescriptor
                                     {
                                         Id = id,
-                                        VersionId = objectVersionId,
+                                        VersionId = templateVersionId,
                                         LastModified = response.LastModified,
                                         Author = author,
                                         AuthorLogin = authorLogin,
@@ -135,7 +133,7 @@ namespace NuClear.VStore.Templates
                         }
                         catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
                         {
-                            throw new ObjectNotFoundException($"Template '{id}' version '{objectVersionId}' not found");
+                            throw new ObjectNotFoundException($"Template '{id}' version '{templateVersionId}' not found");
                         }
                     });
 
@@ -167,15 +165,13 @@ namespace NuClear.VStore.Templates
             return listResponse.S3Objects.FindIndex(o => o.Key == idAsString) != -1;
         }
 
-        public async Task<IReadOnlyCollection<TemplateVersionRecord>> GetTemplateVersions(long id, string initialVersionId)
+        public async Task<IReadOnlyCollection<TemplateVersionRecord>> GetTemplateVersions(long id)
         {
             var idAsString = id.ToString();
             var templateDescriptors = new List<TemplateDescriptor>();
 
             async Task<(bool IsTruncated, int NextVersionIndex, string NextVersionIdMarker)> ListVersions(int nextVersionIndex, string nextVersionIdMarker)
             {
-                await _distributedLockManager.EnsureLockNotExistsAsync(id);
-
                 var response = await _s3Client.ListVersionsAsync(
                                    new ListVersionsRequest
                                        {
@@ -187,32 +183,15 @@ namespace NuClear.VStore.Templates
                 var nonDeletedVersions = response.Versions.FindAll(x => !x.IsDeleteMarker && x.Key == idAsString);
                 nextVersionIndex += nonDeletedVersions.Count;
 
-                var initialVersionIdReached = false;
-                var versionInfos = nonDeletedVersions
-                    .Aggregate(
-                        new List<(string VersionId, DateTime LastModified)>(),
-                        (list, next) =>
-                            {
-                                initialVersionIdReached = initialVersionIdReached ||
-                                                          !string.IsNullOrEmpty(initialVersionId) &&
-                                                          initialVersionId.Equals(next.VersionId, StringComparison.OrdinalIgnoreCase);
-                                if (!initialVersionIdReached)
-                                {
-                                    list.Add((next.VersionId, next.LastModified));
-                                }
-
-                                return list;
-                            });
-
-                var descriptors = new TemplateDescriptor[versionInfos.Count];
-                var partitioner = Partitioner.Create(versionInfos);
+                var descriptors = new TemplateDescriptor[nonDeletedVersions.Count];
+                var partitioner = Partitioner.Create(nonDeletedVersions);
                 var tasks = partitioner.GetOrderablePartitions(_degreeOfParallelism)
                                        .Select(async partition =>
                                                    {
                                                        while (partition.MoveNext())
                                                        {
                                                            var index = partition.Current.Key;
-                                                           var (versionId, _) = partition.Current.Value;
+                                                           var versionId = partition.Current.Value.VersionId;
 
                                                            descriptors[index] = await GetTemplateDescriptor(id, versionId);
                                                        }
@@ -221,7 +200,7 @@ namespace NuClear.VStore.Templates
 
                 templateDescriptors.AddRange(descriptors);
 
-                return (!initialVersionIdReached && response.IsTruncated, nextVersionIndex, response.NextVersionIdMarker);
+                return (response.IsTruncated, nextVersionIndex, response.NextVersionIdMarker);
             }
 
             var result = await ListVersions(0, null);

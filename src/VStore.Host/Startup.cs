@@ -293,6 +293,19 @@ namespace NuClear.VStore.Host
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            app.UseMiddleware<HealthCheckMiddleware>();
+            app.UsePrometheusServer(
+                new PrometheusOptions
+                    {
+                        Collectors = new List<IOnDemandCollector> { new DotNetStatsCollector(), new WindowsDotNetStatsCollector() }
+                    });
+            app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
+
+            if (!env.IsProduction())
+            {
+                app.UseMiddleware<LogUnsuccessfulResponseMiddleware>();
+            }
+
             app.UseExceptionHandler(
                 new ExceptionHandlerOptions
                     {
@@ -301,11 +314,11 @@ namespace NuClear.VStore.Host
                                 {
                                     var feature = context.Features.Get<IExceptionHandlerFeature>();
                                     var error = new JObject
-                                                    {
-                                                        { "requestId", context.TraceIdentifier },
-                                                        { "code", "unhandledException" },
-                                                        { "message", feature.Error.Message }
-                                                    };
+                                        {
+                                            { "requestId", context.TraceIdentifier },
+                                            { "code", "unhandledException" },
+                                            { "message", feature.Error.Message }
+                                        };
 
                                     if (env.IsDevelopment())
                                     {
@@ -316,17 +329,8 @@ namespace NuClear.VStore.Host
                                     await context.Response.WriteAsync(new JObject(new JProperty("error", error)).ToString());
                                 }
                     });
-            app.UseMiddleware<HealthCheckMiddleware>();
-            app.UsePrometheusServer(
-                new PrometheusOptions
-                    {
-                        Collectors = new List<IOnDemandCollector> { new DotNetStatsCollector(), new WindowsDotNetStatsCollector() }
-                    });
-            app.UseMiddleware<CrosscuttingTraceIdentifierMiddleware>();
             app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader().WithExposedHeaders("Location"));
-
             app.UseAuthentication();
-
             app.UseMvc();
 
             if (!env.IsProduction())

@@ -467,41 +467,48 @@ namespace NuClear.VStore.Objects
             IEnumerable<IObjectElementDescriptor> objectElements)
         {
             var existingFileKeys = new HashSet<string>(existingObjectElements.SelectMany(x => x.Value.ExtractFileKeys()));
+            var fileKeysToElementsMap = objectElements.SelectMany(x => x.Value
+                                                                        .ExtractFileKeys()
+                                                                        .Select(y => (TemplateCode: x.TemplateCode, FileKey: y)))
+                                                      .ToLookup(x => x.FileKey, x => x.TemplateCode);
 
-            var tasks = objectElements.SelectMany(x => x.Value
-                                                        .ExtractFileKeys()
-                                                        .Select(y => (x.TemplateCode, FileKey: y)))
-                                      .Select(async x =>
-                                                  {
-                                                      try
-                                                      {
-                                                          if (!existingFileKeys.Contains(x.FileKey))
-                                                          {
-                                                              await _sessionStorageReader.VerifySessionExpirationForBinary(x.FileKey);
-                                                          }
+            var tasks = fileKeysToElementsMap.Select(async e =>
+                                                         {
+                                                             try
+                                                             {
+                                                                 if (!existingFileKeys.Contains(e.Key))
+                                                                 {
+                                                                     await _sessionStorageReader.VerifySessionExpirationForBinary(e.Key);
+                                                                 }
 
-                                                          var metadata = await _sessionStorageReader.GetBinaryMetadata(x.FileKey);
-                                                          return (x.TemplateCode, x.FileKey, Metadata: metadata, Error: (ObjectElementValidationError)null);
-                                                      }
-                                                      catch (Exception e) when (e is ObjectNotFoundException || e is SessionExpiredException)
-                                                      {
-                                                          return (x.TemplateCode, x.FileKey, Metadata: null, Error: new BinaryNotFoundError(x.FileKey));
-                                                      }
-                                                  })
-                                      .ToList();
+                                                                 var metadata = await _sessionStorageReader.GetBinaryMetadata(e.Key);
+                                                                 return e.Select(templateCode => (TemplateCode: templateCode, FileKey: e.Key, Metadata: metadata,
+                                                                                                     Error: (ObjectElementValidationError)null));
+                                                             }
+                                                             catch (Exception ex) when (ex is ObjectNotFoundException || ex is SessionExpiredException)
+                                                             {
+                                                                 return e.Select(templateCode => (TemplateCode: templateCode, FileKey: e.Key, Metadata: (BinaryMetadata)null,
+                                                                                                     Error: (ObjectElementValidationError)new BinaryNotFoundError(e.Key)));
+                                                             }
+                                                         })
+                                             .ToList();
 
-            var results = await Task.WhenAll(tasks);
+            var results = (await Task.WhenAll(tasks))
+                          .SelectMany(x => x)
+                          .ToList();
 
             var errors = results.Where(x => x.Error != null)
-                                .GroupBy(x => x.TemplateCode)
-                                .ToDictionary(x => x.Key, x => (IReadOnlyCollection<ObjectElementValidationError>)x.Select(e => e.Error).ToList());
+                                .GroupBy(x => x.TemplateCode, x => x.Error)
+                                .ToDictionary(x => x.Key, x => (IReadOnlyCollection<ObjectElementValidationError>)x.ToList());
+
             if (errors.Count > 0)
             {
                 throw new InvalidObjectException(id, errors);
             }
 
             return results.Where(x => x.Metadata != null)
-                          .ToDictionary(x => x.FileKey, x => x.Metadata);
+                          .GroupBy(x => x.FileKey)
+                          .ToDictionary(x => x.Key, x => x.First().Metadata);
         }
     }
 }

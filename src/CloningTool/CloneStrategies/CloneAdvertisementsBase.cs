@@ -23,12 +23,16 @@ namespace CloningTool.CloneStrategies
 {
     public abstract class CloneAdvertisementsBase : ICloneStrategy
     {
+        private static readonly IReadOnlyCollection<ModerationStatus> ModerationResolutions =
+            new HashSet<ModerationStatus> { ModerationStatus.Approved, ModerationStatus.Rejected };
+
         private const int MaxIdsCountToFetch = 30;
         private readonly CloningToolOptions _options;
         private readonly ILogger<CloneAdvertisementsBase> _logger;
         private readonly bool _isTruncatedCloning;
 
         private long _uploadedBinariesCount;
+        private long _createdAdsCount;
         private long _selectedToWhitelistCount;
         private long _rejectedCount;
         private long _approvedCount;
@@ -37,7 +41,8 @@ namespace CloningTool.CloneStrategies
         private IDictionary<long, ApiListTemplate> _sourceTemplates;
         private IDictionary<long, ApiListTemplate> _destTemplates;
 
-        protected CloneAdvertisementsBase(CloningToolOptions options,
+        protected CloneAdvertisementsBase(
+            CloningToolOptions options,
             IReadOnlyRestClientFacade sourceRestClient,
             IRestClientFacade destRestClient,
             ILogger<CloneAdvertisementsBase> logger,
@@ -100,30 +105,34 @@ namespace CloningTool.CloneStrategies
             var clonedCount = 0L;
             var failedAds = new ConcurrentBag<ApiListAdvertisement>();
             _logger.LogInformation("Total advertisements to clone: {total}", advertisements.Count);
-            await CloneHelpers.ParallelRunAsync(advertisements,
-                                                _options.MaxDegreeOfParallelism,
-                                                async advertisement =>
-                                                {
-                                                    try
-                                                    {
-                                                        _logger.LogInformation("Start to clone advertisement {id} with created date {createdAt:o}",
-                                                                               advertisement.Id,
-                                                                               advertisement.CreatedAt);
+            await CloneHelpers.ParallelRunAsync(
+                advertisements,
+                _options.MaxDegreeOfParallelism,
+                async advertisement =>
+                    {
+                        try
+                        {
+                            _logger.LogInformation(
+                                "Start to clone advertisement {id} with created date {createdAt:o}",
+                                advertisement.Id,
+                                advertisement.CreatedAt);
 
-                                                        await CloneAdvertisementAsync(advertisement, _options.FetchAdvertisementBeforeClone);
-                                                        Interlocked.Increment(ref clonedCount);
-                                                    }
-                                                    catch (Exception ex)
-                                                    {
-                                                        failedAds.Add(advertisement);
-                                                        _logger.LogError(default, ex, "Advertisement {id} cloning error", advertisement.Id);
-                                                    }
-                                                });
+                            await CloneAdvertisementAsync(advertisement, _options.FetchAdvertisementBeforeClone);
+                            Interlocked.Increment(ref clonedCount);
+                        }
+                        catch (Exception ex)
+                        {
+                            failedAds.Add(advertisement);
+                            _logger.LogError(default, ex, "Advertisement {id} cloning error", advertisement.Id);
+                        }
+                    });
 
             _logger.LogInformation("Total cloned advertisements: {cloned} of {total}", clonedCount, advertisements.Count);
+            _logger.LogInformation("Total created advertisements: {created}", _createdAdsCount);
             _logger.LogInformation("Total uploaded binaries: {totalBinaries}", _uploadedBinariesCount);
             _logger.LogInformation("Total advertisements selected to whitelist: {selectedToWhitelistCount}", _selectedToWhitelistCount);
-            _logger.LogInformation("Total moderated advertisements: {totalModerated} (approved: {approvedCount}; rejected: {rejectedCount}). Total drafted: {draftedCount}; nominally approved: {nominallyCount}",
+            _logger.LogInformation(
+                "Total moderated advertisements: {totalModerated} (approved: {approvedCount}; rejected: {rejectedCount}). Total drafted: {draftedCount}; nominally approved: {nominallyCount}",
                 _approvedCount + _rejectedCount,
                 _approvedCount,
                 _rejectedCount,
@@ -175,40 +184,43 @@ namespace CloningTool.CloneStrategies
             var clonedCount = 0;
             var totallyFailedAds = new ConcurrentBag<long>();
             _logger.LogInformation("Start to clone failed advertisements, total {count}", failedAds.Count.ToString());
-            await CloneHelpers.ParallelRunAsync(failedAds,
-                                                _options.MaxDegreeOfParallelism,
-                                                async advertisement =>
-                                                {
-                                                    bool hasFailed;
-                                                    var tries = 0;
-                                                    do
-                                                    {
-                                                        try
-                                                        {
-                                                            ++tries;
-                                                            await CloneAdvertisementAsync(advertisement, true);
-                                                            Interlocked.Increment(ref clonedCount);
-                                                            hasFailed = false;
-                                                        }
-                                                        catch (Exception ex)
-                                                        {
-                                                            hasFailed = true;
-                                                            _logger.LogError(default, ex, "Advertisement {id} repeated cloning error", advertisement.Id.ToString());
-                                                            await Task.Delay(200);
-                                                        }
-                                                    }
-                                                    while (hasFailed && tries < _options.MaxCloneTries);
+            await CloneHelpers.ParallelRunAsync(
+                failedAds,
+                _options.MaxDegreeOfParallelism,
+                async advertisement =>
+                    {
+                        bool hasFailed;
+                        var tries = 0;
+                        do
+                        {
+                            try
+                            {
+                                ++tries;
+                                await CloneAdvertisementAsync(advertisement, true);
+                                Interlocked.Increment(ref clonedCount);
+                                hasFailed = false;
+                            }
+                            catch (Exception ex)
+                            {
+                                hasFailed = true;
+                                _logger.LogError(default, ex, "Advertisement {id} repeated cloning error", advertisement.Id.ToString());
+                                await Task.Delay(200);
+                            }
+                        }
+                        while (hasFailed && tries < _options.MaxCloneTries);
 
-                                                    if (hasFailed)
-                                                    {
-                                                        totallyFailedAds.Add(advertisement.Id);
-                                                    }
-                                                });
+                        if (hasFailed)
+                        {
+                            totallyFailedAds.Add(advertisement.Id);
+                        }
+                    });
 
             _logger.LogInformation("Failed advertisements repeated cloning done, cloned: {cloned} of {total}", clonedCount, failedAds.Count);
+            _logger.LogInformation("Total created advertisements during repeated cloning: {created}", _createdAdsCount);
             _logger.LogInformation("Total uploaded binaries during repeated cloning: {totalBinaries}", _uploadedBinariesCount);
             _logger.LogInformation("Total advertisements selected to whitelist during repeated cloning: {selectedToWhitelistCount}", _selectedToWhitelistCount);
-            _logger.LogInformation("Total moderated advertisements during repeated cloning: {totalModerated} (approved: {approvedCount}; rejected: {rejectedCount}). Total drafted: {draftedCount}; nominally approved: {nominallyCount}",
+            _logger.LogInformation(
+                "Total moderated advertisements during repeated cloning: {totalModerated} (approved: {approvedCount}; rejected: {rejectedCount}). Total drafted: {draftedCount}; nominally approved: {nominallyCount}",
                 _approvedCount + _rejectedCount,
                 _approvedCount,
                 _rejectedCount,
@@ -248,6 +260,7 @@ namespace CloningTool.CloneStrategies
                 {
                     sourceDescriptor.TemplateVersionId = _destTemplates[sourceDescriptor.TemplateId].VersionId;
                     versionId = await DestRestClient.CreateAdvertisementAsync(advertisement.Id, advertisement.Firm.Id, sourceDescriptor);
+                    Interlocked.Increment(ref _createdAdsCount);
                 }
                 catch (ObjectAlreadyExistsException ex)
                 {
@@ -261,16 +274,20 @@ namespace CloningTool.CloneStrategies
                 Interlocked.Increment(ref _selectedToWhitelistCount);
             }
 
-            if (sourceDescriptor.Moderation != null && sourceDescriptor.Moderation.Status != ModerationStatus.OnApproval
-                && sourceDescriptor.Moderation.Status != ModerationStatus.NominallyApproved)
+            await ModerateAdvertisementAsync(advertisement.Id, versionId, sourceDescriptor);
+        }
+
+        private async Task ModerateAdvertisementAsync(long id, string versionId, ApiObjectDescriptor sourceDescriptor)
+        {
+            if (sourceDescriptor.Moderation != null && ModerationResolutions.Contains(sourceDescriptor.Moderation.Status))
             {
                 if (string.IsNullOrEmpty(versionId))
                 {
-                    _logger.LogWarning("VersionId for object {id} is unknown, need to get latest version", objectId);
-                    versionId = (await DestRestClient.GetAdvertisementAsync(advertisement.Id)).VersionId;
+                    _logger.LogWarning("VersionId for advertisement {id} is unknown, need to get latest version", id);
+                    versionId = (await DestRestClient.GetAdvertisementAsync(id)).VersionId;
                 }
 
-                await DestRestClient.UpdateAdvertisementModerationStatusAsync(objectId, versionId, sourceDescriptor.Moderation);
+                await DestRestClient.UpdateAdvertisementModerationStatusAsync(id, versionId, sourceDescriptor.Moderation);
             }
 
             switch (sourceDescriptor.Moderation?.Status)
@@ -403,6 +420,7 @@ namespace CloningTool.CloneStrategies
 
         private void ResetCounters()
         {
+            _createdAdsCount = 0L;
             _uploadedBinariesCount = 0L;
             _approvedCount = 0L;
             _draftedCount = 0L;

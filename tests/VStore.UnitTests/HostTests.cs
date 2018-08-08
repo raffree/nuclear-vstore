@@ -114,14 +114,14 @@ namespace VStore.UnitTests
                 _mockObjectsStorageReader.Verify(x => x.GetObjectDescriptor(ObjectId, ObjectVersion, It.IsAny<CancellationToken>()), Times.Exactly(1));
             }
 
-            _mockObjectsStorageReader.ResetCalls();
-            _mockObjectsStorageReader.Setup(x => x.GetObjectVersions(It.IsAny<long>(), It.IsAny<string>()))
+            _mockObjectsStorageReader.Invocations.Clear();
+            _mockObjectsStorageReader.Setup(x => x.GetObjectVersionsMetadata(It.IsAny<long>(), It.IsAny<string>()))
                                      .ThrowsAsync(new ObjectNotFoundException(string.Empty));
 
             using (var response = await _client.GetAsync($"/api/1.0/objects/{ObjectId}/versions"))
             {
                 Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-                _mockObjectsStorageReader.Verify(x => x.GetObjectVersions(ObjectId, It.Is<string>(p => string.IsNullOrEmpty(p))), Times.Exactly(1));
+                _mockObjectsStorageReader.Verify(x => x.GetObjectVersionsMetadata(ObjectId, It.Is<string>(p => string.IsNullOrEmpty(p))), Times.Exactly(1));
             }
 
             _mockObjectsStorageReader.Reset();

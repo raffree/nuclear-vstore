@@ -43,6 +43,7 @@ namespace NuClear.VStore.Renderer.Controllers
         /// <returns>HTTP code</returns>
         [HttpGet("{id:long}/{versionId}/{templateCode:int}")]
         [ProducesResponseType(302)]
+        [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> RedirectToRaw(long id, string versionId, int templateCode)
         {
@@ -55,7 +56,7 @@ namespace NuClear.VStore.Renderer.Controllers
             {
                 return NotFound();
             }
-            catch (ArgumentException ex)
+            catch (ObjectElementInvalidTypeException ex)
             {
                 return BadRequest(ex.Message);
             }

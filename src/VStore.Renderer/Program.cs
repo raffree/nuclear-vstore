@@ -1,9 +1,12 @@
-﻿using Autofac.Extensions.DependencyInjection;
+﻿using System.Threading.Tasks;
+
+using Autofac.Extensions.DependencyInjection;
 
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 
 using NuClear.VStore.Configuration;
+using NuClear.VStore.Http.Core.Extensions;
 
 using Serilog;
 
@@ -11,13 +14,16 @@ namespace NuClear.VStore.Renderer
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
-            BuildWebHost(args).Run();
+            var webHost = BuildWebHost(args);
+            webHost.ConfigureThreadPool();
+            await webHost.RunAsync();
         }
 
         public static IWebHost BuildWebHost(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
+                   .UseSockets(options => options.IOQueueCount = 0)
                    .ConfigureServices(services => services.AddAutofac())
                    .ConfigureAppConfiguration((hostingContext, config) =>
                                                   {

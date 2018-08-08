@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Threading.Tasks;
 
 using Amazon;
 
@@ -9,6 +10,7 @@ using Autofac.Extensions.DependencyInjection;
 
 using NuClear.VStore.Configuration;
 using NuClear.VStore.Host.Logging;
+using NuClear.VStore.Http.Core.Extensions;
 
 using Serilog;
 using Serilog.Events;
@@ -17,15 +19,20 @@ namespace NuClear.VStore.Host
 {
     public class Program
     {
-        public static void Main(string[] args)
+        private const int LibuvEventLoopCount = 8;
+
+        public static async Task Main(string[] args)
         {
             var webHost = BuildWebHost(args);
+            webHost.ConfigureThreadPool();
+
             ConfigureAwsLogging();
-            webHost.Run();
+            await webHost.RunAsync();
         }
 
         private static IWebHost BuildWebHost(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
+                   .UseLibuv(options => options.ThreadCount = LibuvEventLoopCount)
                    .ConfigureServices(services => services.AddAutofac())
                    .ConfigureAppConfiguration((hostingContext, config) =>
                                                   {

@@ -250,6 +250,7 @@ namespace NuClear.VStore.Worker.Jobs
                     var fileInfos = record.Elements
                                           .SelectMany(rec => rec.Value.ExtractFileKeys().Select(key => (rec.TemplateCode, FileKey: key)))
                                           .ToList();
+
                     foreach (var fileInfo in fileInfos)
                     {
                         await _eventSender.SendAsync(
